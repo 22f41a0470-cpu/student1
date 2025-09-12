@@ -1,0 +1,5 @@
+{
+  "name": "Student & Admin File Submission Portal",
+  "description": "A web application for students to upload files and track their status, and for admins to review, approve, reject, and download these submissions.",
+  "requestFramePermissions": []
+}
