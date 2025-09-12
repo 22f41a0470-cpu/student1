@@ -1,17 +1,27 @@
-
 import { User, UserRole } from '../types';
 import { ADMIN_USER } from '../constants';
+import { deleteSubmissionForUser } from './submissionService';
 
 const USERS_KEY = 'submission_portal_users';
 const SESSION_KEY = 'submission_portal_session';
 
 const getStoredUsers = (): User[] => {
   const usersJson = localStorage.getItem(USERS_KEY);
-  return usersJson ? JSON.parse(usersJson) : [ADMIN_USER];
+  if (usersJson) {
+    return JSON.parse(usersJson);
+  }
+  // If no users, initialize with admin
+  const initialUsers = [ADMIN_USER];
+  localStorage.setItem(USERS_KEY, JSON.stringify(initialUsers));
+  return initialUsers;
 };
 
 const storeUsers = (users: User[]) => {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
+};
+
+export const getAllUsers = (): User[] => {
+  return getStoredUsers();
 };
 
 export const registerUser = (name: string, email: string, password: string): User | null => {
@@ -28,6 +38,7 @@ export const registerUser = (name: string, email: string, password: string): Use
     email,
     password,
     role: UserRole.STUDENT,
+    lastLogin: new Date().toISOString(),
   };
 
   users.push(newUser);
@@ -36,17 +47,16 @@ export const registerUser = (name: string, email: string, password: string): Use
 };
 
 export const loginUser = (email: string, password: string): User | null => {
-  if (email === ADMIN_USER.email && password === ADMIN_USER.password) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(ADMIN_USER));
-    return ADMIN_USER;
-  }
-
   const users = getStoredUsers();
-  const user = users.find(
-    (u) => u.role === UserRole.STUDENT && u.email === email && u.password === password
+  const userIndex = users.findIndex(
+    (u) => u.email === email && u.password === password
   );
 
-  if (user) {
+  if (userIndex !== -1) {
+    const user = users[userIndex];
+    user.lastLogin = new Date().toISOString();
+    users[userIndex] = user;
+    storeUsers(users);
     localStorage.setItem(SESSION_KEY, JSON.stringify(user));
     return user;
   }
@@ -61,4 +71,20 @@ export const logoutUser = () => {
 export const getCurrentUser = (): User | null => {
   const sessionJson = localStorage.getItem(SESSION_KEY);
   return sessionJson ? JSON.parse(sessionJson) : null;
+};
+
+export const deleteUser = (userId: string): boolean => {
+  let users = getStoredUsers();
+  const userToDelete = users.find(u => u.id === userId);
+
+  if (!userToDelete) return false;
+
+  // Also delete their submission if they are a student
+  if (userToDelete.role === UserRole.STUDENT) {
+    deleteSubmissionForUser(userId);
+  }
+  
+  const updatedUsers = users.filter((user) => user.id !== userId);
+  storeUsers(updatedUsers);
+  return true;
 };

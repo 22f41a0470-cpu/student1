@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { User, UserRole } from './types';
 import { getCurrentUser, logoutUser } from './services/authService';
 import LoginPage from './components/LoginPage';
@@ -7,13 +6,21 @@ import RegisterPage from './components/RegisterPage';
 import StudentDashboard from './components/StudentDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import Header from './components/Header';
+import { ThemeProvider, ThemeContext } from './contexts/ThemeContext';
 
 type View = 'LOGIN' | 'REGISTER';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authView, setAuthView] = useState<View>('LOGIN');
   const [isLoading, setIsLoading] = useState(true);
+  const { theme } = useContext(ThemeContext);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove(theme === 'dark' ? 'light' : 'dark');
+    root.classList.add(theme);
+  }, [theme]);
   
   useEffect(() => {
     const user = getCurrentUser();
@@ -60,5 +67,11 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+const App: React.FC = () => (
+  <ThemeProvider>
+    <AppContent />
+  </ThemeProvider>
+);
 
 export default App;

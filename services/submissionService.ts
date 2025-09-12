@@ -1,4 +1,3 @@
-
 import { Submission, SubmissionStatus, StoredFile, User } from '../types';
 import { fileToBase64 } from '../utils/fileHelper';
 
@@ -68,4 +67,10 @@ export const updateSubmissionStatus = (
   storeSubmissions(submissions);
 
   return updatedSubmission;
+};
+
+export const deleteSubmissionForUser = (userId: string) => {
+  const submissions = getStoredSubmissions();
+  const updatedSubmissions = submissions.filter(sub => sub.studentId !== userId);
+  storeSubmissions(updatedSubmissions);
 };

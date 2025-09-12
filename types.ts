@@ -1,4 +1,3 @@
-
 export enum UserRole {
   STUDENT = 'STUDENT',
   ADMIN = 'ADMIN',
@@ -16,6 +15,7 @@ export interface User {
   email: string;
   password?: string; // Should not be stored long-term, but needed for registration
   role: UserRole;
+  lastLogin?: string;
 }
 
 export interface StoredFile {

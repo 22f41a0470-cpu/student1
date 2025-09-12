@@ -1,14 +1,13 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { Submission, SubmissionStatus } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Submission, SubmissionStatus, User } from '../types';
 import { getAllSubmissions, updateSubmissionStatus } from '../services/submissionService';
 import { downloadBase64File } from '../utils/fileHelper';
 import Modal from './common/Modal';
 
 const statusStyles: Record<SubmissionStatus, string> = {
-  [SubmissionStatus.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-  [SubmissionStatus.APPROVED]: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  [SubmissionStatus.REJECTED]: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+  [SubmissionStatus.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
+  [SubmissionStatus.APPROVED]: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
+  [SubmissionStatus.REJECTED]: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
 };
 
 const AdminDashboard: React.FC = () => {
@@ -17,20 +16,21 @@ const AdminDashboard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<SubmissionStatus | 'ALL'>('ALL');
 
-  const fetchSubmissions = useCallback(() => {
-    const allSubmissions = getAllSubmissions();
-    setSubmissions(allSubmissions);
+  const fetchData = () => {
+    setSubmissions(getAllSubmissions());
     setIsLoading(false);
-  }, []);
+  };
 
   useEffect(() => {
-    fetchSubmissions();
-  }, [fetchSubmissions]);
+    fetchData();
+  }, []);
 
   const handleApprove = (submissionId: string) => {
     updateSubmissionStatus(submissionId, SubmissionStatus.APPROVED);
-    fetchSubmissions();
+    fetchData();
   };
 
   const openRejectModal = (submission: Submission) => {
@@ -41,7 +41,7 @@ const AdminDashboard: React.FC = () => {
   const handleReject = () => {
     if (selectedSubmission && rejectionReason) {
       updateSubmissionStatus(selectedSubmission.id, SubmissionStatus.REJECTED, rejectionReason);
-      fetchSubmissions();
+      fetchData();
       closeModal();
     }
   };
@@ -52,59 +52,119 @@ const AdminDashboard: React.FC = () => {
     setRejectionReason('');
   };
 
+  const filteredSubmissions = useMemo(() => {
+    return submissions.filter(sub => {
+      const matchesSearch = sub.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            sub.file.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilter = statusFilter === 'ALL' || sub.status === statusFilter;
+      return matchesSearch && matchesFilter;
+    });
+  }, [submissions, searchQuery, statusFilter]);
+
   if (isLoading) {
-    return <div className="text-center p-10 dark:text-white">Loading submissions...</div>;
+    return <div className="text-center p-10 dark:text-white">Loading dashboard...</div>;
   }
+  
+  const FilterButton: React.FC<{status: SubmissionStatus | 'ALL', label: string}> = ({ status, label }) => (
+    <button
+        onClick={() => setStatusFilter(status)}
+        className={`px-4 py-2 text-sm font-medium rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] dark:ring-offset-gray-900 transition-colors duration-200 ${
+            statusFilter === status
+            ? 'text-white bg-[var(--primary-color)] border-transparent'
+            : 'text-gray-600 bg-gray-100 border-gray-200 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600'
+        }`}
+    >
+        {label}
+    </button>
+  );
 
   return (
-    <main className="container mx-auto px-6 py-8">
-      <h2 className="text-3xl font-semibold text-gray-800 dark:text-white mb-6">All Submissions</h2>
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-700">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Student</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">File</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Submitted At</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {submissions.length > 0 ? submissions.map(sub => (
-              <tr key={sub.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">{sub.studentName}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{sub.file.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{new Date(sub.submittedAt).toLocaleString()}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyles[sub.status]}`}>
-                    {sub.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                  <button onClick={() => downloadBase64File(sub.file)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">Download</button>
-                  {sub.status === SubmissionStatus.PENDING && (
-                    <>
-                      <button onClick={() => handleApprove(sub.id)} className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200">Approve</button>
-                      <button onClick={() => openRejectModal(sub)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200">Reject</button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            )) : (
+    <main className="flex-1 px-8 md:px-16 lg:px-24 py-10">
+      <div className="flex flex-col max-w-7xl mx-auto">
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
+            <div className="flex flex-col gap-1">
+                <h1 className="text-gray-900 text-3xl font-bold dark:text-gray-100">Submissions</h1>
+                <p className="text-gray-500 text-base dark:text-gray-400">Review and manage student submissions.</p>
+            </div>
+        </div>
+
+        <div className="mb-8">
+            <label className="relative">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 !text-2xl dark:text-gray-500">search</span>
+                <input 
+                    className="form-input w-full pl-12 pr-4 py-3.5 text-lg text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent placeholder:text-gray-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:placeholder:text-gray-400"
+                    placeholder="Search by student name, file, or status..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </label>
+        </div>
+        
+        <div className="mb-6 flex flex-wrap items-center gap-4">
+            <h3 className="text-base font-medium text-gray-700 dark:text-gray-300">Filter by status:</h3>
+            <div className="flex items-center gap-2">
+                <FilterButton status="ALL" label="All" />
+                <FilterButton status={SubmissionStatus.PENDING} label="Pending" />
+                <FilterButton status={SubmissionStatus.APPROVED} label="Approved" />
+                <FilterButton status={SubmissionStatus.REJECTED} label="Rejected" />
+            </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">No submissions found.</td>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-300">Student</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-300">File Name</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-300">Submission Date</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-300">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-300">Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {filteredSubmissions.length > 0 ? filteredSubmissions.map(sub => (
+                <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{sub.studentName}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{sub.file.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{new Date(sub.submittedAt).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[sub.status]}`}>
+                      {sub.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                     <div className="flex items-center gap-2">
+                        <button onClick={() => downloadBase64File(sub.file)} className="p-2 text-gray-500 hover:text-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] rounded-full dark:text-gray-400 dark:hover:text-[var(--primary-color)] dark:ring-offset-gray-800" title="Download">
+                            <span className="material-symbols-outlined">download</span>
+                        </button>
+                        {sub.status === SubmissionStatus.PENDING && (
+                        <>
+                            <button onClick={() => handleApprove(sub.id)} className="p-2 text-gray-500 hover:text-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 rounded-full dark:text-gray-400 dark:hover:text-green-400 dark:ring-offset-gray-800" title="Approve">
+                                <span className="material-symbols-outlined">check_circle</span>
+                            </button>
+                            <button onClick={() => openRejectModal(sub)} className="p-2 text-gray-500 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 rounded-full dark:text-gray-400 dark:hover:text-red-400 dark:ring-offset-gray-800" title="Reject">
+                                <span className="material-symbols-outlined">cancel</span>
+                            </button>
+                        </>
+                        )}
+                    </div>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">No submissions found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <Modal isOpen={isModalOpen} onClose={closeModal} title="Reason for Rejection">
+       <Modal isOpen={isModalOpen} onClose={closeModal} title="Reason for Rejection">
         <div>
           <textarea
             value={rejectionReason}
             onChange={(e) => setRejectionReason(e.target.value)}
-            className="w-full h-32 p-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full h-32 p-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-[var(--primary-color)] focus:border-[var(--primary-color)]"
             placeholder="Provide a clear reason for rejecting this submission..."
           />
           <div className="mt-4 flex justify-end space-x-2">
