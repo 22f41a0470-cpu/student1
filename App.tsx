@@ -2,17 +2,13 @@ import React, { useState, useEffect, useContext } from 'react';
 import { User, UserRole } from './types';
 import { getCurrentUser, logoutUser } from './services/authService';
 import LoginPage from './components/LoginPage';
-import RegisterPage from './components/RegisterPage';
 import StudentDashboard from './components/StudentDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import Header from './components/Header';
 import { ThemeProvider, ThemeContext } from './contexts/ThemeContext';
 
-type View = 'LOGIN' | 'REGISTER';
-
 const AppContent: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [authView, setAuthView] = useState<View>('LOGIN');
   const [isLoading, setIsLoading] = useState(true);
   const { theme } = useContext(ThemeContext);
 
@@ -37,7 +33,6 @@ const AppContent: React.FC = () => {
   const handleLogout = () => {
     logoutUser();
     setCurrentUser(null);
-    setAuthView('LOGIN');
   };
   
   if (isLoading) {
@@ -49,18 +44,14 @@ const AppContent: React.FC = () => {
   }
 
   if (!currentUser) {
-    return authView === 'LOGIN' ? (
-      <LoginPage onLogin={handleLogin} onSwitchToRegister={() => setAuthView('REGISTER')} />
-    ) : (
-      <RegisterPage onRegister={() => {}} onSwitchToLogin={() => setAuthView('LOGIN')} />
-    );
+    return <LoginPage onLogin={handleLogin} />;
   }
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <Header user={currentUser} onLogout={handleLogout} />
       {currentUser.role === UserRole.ADMIN ? (
-        <AdminDashboard />
+        <AdminDashboard user={currentUser} />
       ) : (
         <StudentDashboard user={currentUser} />
       )}

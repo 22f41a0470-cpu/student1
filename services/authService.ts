@@ -1,5 +1,5 @@
 import { User, UserRole } from '../types';
-import { ADMIN_USER } from '../constants';
+import { ADMIN_USER, studentData } from '../constants';
 import { deleteSubmissionForUser } from './submissionService';
 
 const USERS_KEY = 'submission_portal_users';
@@ -10,8 +10,16 @@ const getStoredUsers = (): User[] => {
   if (usersJson) {
     return JSON.parse(usersJson);
   }
-  // If no users, initialize with admin
-  const initialUsers = [ADMIN_USER];
+  // If no users, initialize with admin and pre-populated students
+  const initialStudents: User[] = studentData.map(student => ({
+    id: `student-${student.regNo}`,
+    name: student.name,
+    email: student.regNo, // Use regNo as email for login
+    password: student.regNo, // Use regNo as password
+    role: UserRole.STUDENT,
+  }));
+
+  const initialUsers = [ADMIN_USER, ...initialStudents];
   localStorage.setItem(USERS_KEY, JSON.stringify(initialUsers));
   return initialUsers;
 };
@@ -25,25 +33,9 @@ export const getAllUsers = (): User[] => {
 };
 
 export const registerUser = (name: string, email: string, password: string): User | null => {
-  const users = getStoredUsers();
-  const existingUser = users.find((user) => user.email === email);
-  if (existingUser) {
-    alert('User with this email already exists.');
-    return null;
-  }
-
-  const newUser: User = {
-    id: `user-${Date.now()}`,
-    name,
-    email,
-    password,
-    role: UserRole.STUDENT,
-    lastLogin: new Date().toISOString(),
-  };
-
-  users.push(newUser);
-  storeUsers(users);
-  return newUser;
+  // Registration is disabled now that students are pre-populated.
+  alert('Student registration is currently disabled.');
+  return null;
 };
 
 export const loginUser = (email: string, password: string): User | null => {

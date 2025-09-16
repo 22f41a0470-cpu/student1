@@ -5,10 +5,9 @@ import { User } from '../types';
 
 interface LoginPageProps {
   onLogin: (user: User) => void;
-  onSwitchToRegister: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToRegister }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,7 +19,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToRegister }) =>
     if (user) {
       onLogin(user);
     } else {
-      setError('Invalid email or password.');
+      setError('Invalid credentials. Please try again.');
     }
   };
 
@@ -31,9 +30,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToRegister }) =>
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-gray-700 dark:text-gray-300 mb-2" htmlFor="email">Email</label>
+            <label className="block text-gray-700 dark:text-gray-300 mb-2" htmlFor="email">Register Number / Email</label>
             <input
-              type="email"
+              type="text"
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -59,12 +58,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToRegister }) =>
             Login
           </button>
         </form>
-        <p className="text-center mt-4 text-gray-600 dark:text-gray-400">
-          Don't have an account?{' '}
-          <button onClick={onSwitchToRegister} className="text-indigo-500 hover:underline">
-            Register here
-          </button>
-        </p>
       </div>
     </div>
   );
