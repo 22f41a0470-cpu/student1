@@ -29,7 +29,9 @@ export const createSubmission = async (student: User, file: File): Promise<Submi
     submittedAt: new Date().toISOString(),
   };
 
-  const submissions = getStoredSubmissions();
+  let submissions = getStoredSubmissions();
+  // Remove any existing submission for this student
+  submissions = submissions.filter(sub => sub.studentId !== student.id);
   submissions.push(newSubmission);
   storeSubmissions(submissions);
 

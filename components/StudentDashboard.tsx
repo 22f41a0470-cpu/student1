@@ -118,11 +118,19 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
 
   return (
     <main className="container mx-auto px-6 py-8">
-      {submission ? (
-        <StatusCard submission={submission} />
-      ) : (
-        <UploadForm user={user} onUploadSuccess={setSubmission} />
-      )}
+      <div className="space-y-8">
+        {submission && <StatusCard submission={submission} />}
+
+        {!submission ? (
+          <UploadForm user={user} onUploadSuccess={setSubmission} />
+        ) : submission.status === SubmissionStatus.REJECTED ? (
+          <UploadForm user={user} onUploadSuccess={setSubmission} />
+        ) : (
+          <p className="text-center text-gray-500 dark:text-gray-400">
+            You cannot submit a new file while your current submission is pending or approved.
+          </p>
+        )}
+      </div>
     </main>
   );
 };
