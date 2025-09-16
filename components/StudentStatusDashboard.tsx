@@ -11,6 +11,7 @@ const submissionStatusStyles: Record<SubmissionStatus | 'Not Submitted', string>
   [SubmissionStatus.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
   [SubmissionStatus.APPROVED]: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
   [SubmissionStatus.REJECTED]: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
+  [SubmissionStatus.CHANGES_REQUESTED]: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300',
   'Not Submitted': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
 
@@ -84,7 +85,7 @@ const StudentStatusDashboard: React.FC<StudentStatusDashboardProps> = ({ users, 
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{student.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${submissionStatusStyles[student.submissionStatus]}`}>
-                    {student.submissionStatus}
+                    {typeof student.submissionStatus === 'string' ? student.submissionStatus.replace('_', ' ') : student.submissionStatus}
                   </span>
                 </td>
                 <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${loginStatusStyles[student.hasLoggedIn ? 'Logged In' : 'Never']}`}>

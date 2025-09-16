@@ -10,6 +10,7 @@ const statusStyles: Record<SubmissionStatus, string> = {
   [SubmissionStatus.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
   [SubmissionStatus.APPROVED]: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
   [SubmissionStatus.REJECTED]: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
+  [SubmissionStatus.CHANGES_REQUESTED]: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300',
 };
 
 const StatusCard: React.FC<{ submission: Submission }> = ({ submission }) => (
@@ -27,20 +28,28 @@ const StatusCard: React.FC<{ submission: Submission }> = ({ submission }) => (
       <div className="flex items-center">
         <span className="font-semibold text-gray-600 dark:text-gray-400">Status:</span>
         <span className={`ml-2 px-3 py-1 text-sm font-semibold rounded-full ${statusStyles[submission.status]}`}>
-          {submission.status}
+          {submission.status.replace('_', ' ')}
         </span>
       </div>
-      {submission.status === SubmissionStatus.REJECTED && submission.rejection_reason && (
+      {(submission.status === SubmissionStatus.REJECTED || submission.status === SubmissionStatus.CHANGES_REQUESTED) && submission.rejection_reason && (
         <div className="pt-2">
-          <p className="font-semibold text-gray-600 dark:text-gray-400">Reason for Rejection:</p>
-          <p className="mt-1 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-md text-red-700 dark:text-red-300">{submission.rejection_reason}</p>
+          <p className="font-semibold text-gray-600 dark:text-gray-400">
+            {submission.status === SubmissionStatus.REJECTED ? 'Reason for Rejection:' : 'Admin Feedback:'}
+          </p>
+          <p className={`mt-1 p-3 rounded-md text-sm ${submission.status === SubmissionStatus.REJECTED ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-300' : 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-500/30 text-orange-700 dark:text-orange-300'}`}>
+            {submission.rejection_reason}
+          </p>
         </div>
       )}
     </div>
   </div>
 );
 
-const UploadForm: React.FC<{ user: User; onUploadSuccess: (submission: Submission) => void }> = ({ user, onUploadSuccess }) => {
+const UploadForm: React.FC<{
+  user: User;
+  onUploadSuccess: (submission: Submission) => void;
+  submissionStatus?: SubmissionStatus | null;
+}> = ({ user, onUploadSuccess, submissionStatus }) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
@@ -74,9 +83,33 @@ const UploadForm: React.FC<{ user: User; onUploadSuccess: (submission: Submissio
     }
   };
 
+  const getTitle = () => {
+    if (submissionStatus === SubmissionStatus.REJECTED || submissionStatus === SubmissionStatus.CHANGES_REQUESTED) {
+      return 'Upload a New File';
+    }
+    return 'Upload Your File';
+  };
+
+  const getMessage = () => {
+    if (submissionStatus === SubmissionStatus.REJECTED) {
+      return "Your previous submission was rejected. Please review the feedback above, make the necessary changes, and upload the corrected file.";
+    }
+    if (submissionStatus === SubmissionStatus.CHANGES_REQUESTED) {
+      return "The admin has requested changes. Please review the feedback and upload a revised version of your file.";
+    }
+    return null;
+  };
+
+  const message = getMessage();
+
   return (
     <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-      <h3 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">Upload Your File</h3>
+      <h3 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">{getTitle()}</h3>
+      {message && (
+        <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+          {message}
+        </p>
+      )}
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white" htmlFor="file_input">
@@ -119,13 +152,20 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
     return <div className="text-center p-10 dark:text-gray-300">Loading...</div>;
   }
 
+  const canUploadNewFile = !submission || submission.status === SubmissionStatus.REJECTED || submission.status === SubmissionStatus.CHANGES_REQUESTED;
+
   return (
     <main className="container mx-auto px-6 py-8">
-       <div className="max-w-4xl mx-auto">
-          {submission ? (
+       <div className="max-w-4xl mx-auto space-y-8">
+          {submission && (
             <StatusCard submission={submission} />
-          ) : (
-            <UploadForm user={user} onUploadSuccess={setSubmission} />
+          )}
+          {canUploadNewFile && (
+            <UploadForm
+              user={user}
+              onUploadSuccess={setSubmission}
+              submissionStatus={submission?.status}
+            />
           )}
        </div>
     </main>

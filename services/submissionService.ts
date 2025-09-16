@@ -86,20 +86,41 @@ export const getAllSubmissions = async (): Promise<Submission[]> => {
 };
 
 export const updateSubmissionStatus = async (
-  submissionId: string,
+  submission: Submission,
   status: SubmissionStatus,
-  rejectionReason?: string
+  feedback?: string
 ): Promise<Submission | null> => {
-  const updateData: { status: SubmissionStatus; rejection_reason: string | null } = {
+  const updateData: Partial<Submission> = {
     status,
-    // Set reason if rejecting, otherwise explicitly set to null to clear the field.
-    rejection_reason: status === SubmissionStatus.REJECTED ? (rejectionReason || null) : null,
+    rejection_reason: feedback || null,
   };
+
+  // Special handling for rejection: delete file and clear file-related fields
+  if (status === SubmissionStatus.REJECTED) {
+    if (submission.file_path) {
+      console.log(`Deleting rejected file from storage: ${submission.file_path}`);
+      const { error: removeError } = await supabase.storage
+        .from('uploads')
+        .remove([submission.file_path]);
+
+      if (removeError) {
+        // Log the error but proceed with the database update. The file might already be gone.
+        console.error('Could not delete file from storage on rejection:', removeError.message);
+      }
+    }
+    
+    // Update data to reflect file deletion
+    updateData.file_path = null;
+    // Prepend (Rejected) to preserve a record of the original filename
+    updateData.file_name = `(Rejected) ${submission.file_name || 'unknown file'}`;
+    updateData.file_size = null;
+    updateData.file_type = null;
+  }
 
   const { data, error } = await supabase
     .from('uploads')
     .update(updateData)
-    .eq('id', submissionId)
+    .eq('id', submission.id)
     .select()
     .single();
 

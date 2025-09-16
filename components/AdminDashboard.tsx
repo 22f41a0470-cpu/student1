@@ -13,6 +13,7 @@ const statusStyles: Record<SubmissionStatus, string> = {
   [SubmissionStatus.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
   [SubmissionStatus.APPROVED]: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
   [SubmissionStatus.REJECTED]: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
+  [SubmissionStatus.CHANGES_REQUESTED]: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300',
 };
 
 interface AdminDashboardProps {
@@ -27,8 +28,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [feedback, setFeedback] = useState('');
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [modalAction, setModalAction] = useState<'reject' | 'request_changes' | null>(null);
   const [submissionSearchQuery, setSubmissionSearchQuery] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<SubmissionStatus | 'ALL'>('ALL');
@@ -70,18 +72,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   }, [selectedStudentId, users]);
 
   const handleApprove = async (submissionId: string) => {
-    await updateSubmissionStatus(submissionId, SubmissionStatus.APPROVED);
+    const submissionToApprove = submissions.find(sub => sub.id === submissionId);
+    if (!submissionToApprove) {
+      console.error("Could not find submission to approve:", submissionId);
+      alert("Error: Could not find the submission to approve.");
+      return;
+    }
+    await updateSubmissionStatus(submissionToApprove, SubmissionStatus.APPROVED);
     fetchData();
   };
 
-  const openRejectModal = (submission: Submission) => {
+  const openFeedbackModal = (submission: Submission, action: 'reject' | 'request_changes') => {
     setSelectedSubmission(submission);
+    setModalAction(action);
     setIsModalOpen(true);
   };
   
   const handleReject = async () => {
-    if (selectedSubmission && rejectionReason) {
-      await updateSubmissionStatus(selectedSubmission.id, SubmissionStatus.REJECTED, rejectionReason);
+    if (selectedSubmission && feedback) {
+      await updateSubmissionStatus(selectedSubmission, SubmissionStatus.REJECTED, feedback);
+      fetchData();
+      closeModal();
+    }
+  };
+
+  const handleRequestChanges = async () => {
+    if (selectedSubmission && feedback) {
+      await updateSubmissionStatus(selectedSubmission, SubmissionStatus.CHANGES_REQUESTED, feedback);
       fetchData();
       closeModal();
     }
@@ -90,7 +107,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedSubmission(null);
-    setRejectionReason('');
+    setFeedback('');
+    setModalAction(null);
   };
 
   const enrichedSubmissions = useMemo((): EnrichedSubmission[] => {
@@ -106,8 +124,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
 
   const filteredSubmissions = useMemo(() => {
     return enrichedSubmissions.filter(sub => {
-      const matchesSearch = sub.studentName.toLowerCase().includes(submissionSearchQuery.toLowerCase()) ||
-                            sub.file_name.toLowerCase().includes(submissionSearchQuery.toLowerCase());
+      const searchInput = submissionSearchQuery.toLowerCase();
+      const matchesSearch = sub.studentName.toLowerCase().includes(searchInput) ||
+                            (sub.file_name && sub.file_name.toLowerCase().includes(searchInput));
       const matchesFilter = statusFilter === 'ALL' || sub.status === statusFilter;
       return matchesSearch && matchesFilter;
     });
@@ -194,6 +213,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                     <FilterButton status={SubmissionStatus.PENDING} label="Pending" />
                     <FilterButton status={SubmissionStatus.APPROVED} label="Approved" />
                     <FilterButton status={SubmissionStatus.REJECTED} label="Rejected" />
+                    <FilterButton status={SubmissionStatus.CHANGES_REQUESTED} label="Changes Requested" />
                 </div>
             </div>
 
@@ -216,12 +236,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{new Date(sub.created_at).toLocaleDateString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[sub.status]}`}>
-                          {sub.status}
+                          {sub.status.replace('_', ' ')}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center gap-2">
-                            <button onClick={() => downloadFile(sub.file_path, sub.file_name)} className="p-2 text-gray-500 hover:text-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] rounded-full dark:text-gray-400 dark:hover:text-[var(--primary-color)] dark:ring-offset-gray-800" title="Download">
+                            <button
+                              onClick={() => downloadFile(sub.file_path!, sub.file_name!)}
+                              disabled={!sub.file_path}
+                              className="p-2 text-gray-500 hover:text-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] rounded-full dark:text-gray-400 dark:hover:text-[var(--primary-color)] dark:ring-offset-gray-800 disabled:text-gray-300 dark:disabled:text-gray-500 disabled:cursor-not-allowed"
+                              title={sub.file_path ? "Download" : "File not available"}
+                            >
                                 <span className="material-symbols-outlined">download</span>
                             </button>
                             {sub.status === SubmissionStatus.PENDING && (
@@ -229,7 +254,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                                 <button onClick={() => handleApprove(sub.id)} className="p-2 text-gray-500 hover:text-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 rounded-full dark:text-gray-400 dark:hover:text-green-400 dark:ring-offset-gray-800" title="Approve">
                                     <span className="material-symbols-outlined">check_circle</span>
                                 </button>
-                                <button onClick={() => openRejectModal(sub)} className="p-2 text-gray-500 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 rounded-full dark:text-gray-400 dark:hover:text-red-400 dark:ring-offset-gray-800" title="Reject">
+                                <button onClick={() => openFeedbackModal(sub, 'request_changes')} className="p-2 text-gray-500 hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 rounded-full dark:text-gray-400 dark:hover:text-orange-400 dark:ring-offset-gray-800" title="Request Changes">
+                                    <span className="material-symbols-outlined">edit_note</span>
+                                </button>
+                                <button onClick={() => openFeedbackModal(sub, 'reject')} className="p-2 text-gray-500 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 rounded-full dark:text-gray-400 dark:hover:text-red-400 dark:ring-offset-gray-800" title="Reject">
                                     <span className="material-symbols-outlined">cancel</span>
                                 </button>
                             </>
@@ -268,17 +296,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
           )
         )}
       </div>
-       <Modal isOpen={isModalOpen} onClose={closeModal} title="Reason for Rejection">
+       <Modal isOpen={isModalOpen} onClose={closeModal} title={modalAction === 'reject' ? "Reason for Rejection" : "Request Changes"}>
         <div>
           <textarea
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
             className="w-full h-32 p-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-[var(--primary-color)] focus:border-[var(--primary-color)]"
-            placeholder="Provide a clear reason for rejecting this submission..."
+            placeholder={modalAction === 'reject' ? "Provide a clear reason for rejecting this submission..." : "Provide clear instructions for the required changes..."}
           />
           <div className="mt-4 flex justify-end space-x-2">
             <button onClick={closeModal} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancel</button>
-            <button onClick={handleReject} disabled={!rejectionReason} className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-red-300">Confirm Rejection</button>
+            {modalAction === 'reject' ? (
+                 <button onClick={handleReject} disabled={!feedback} className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-red-300">Confirm Rejection</button>
+            ) : (
+                <button onClick={handleRequestChanges} disabled={!feedback} className="px-4 py-2 bg-[var(--primary-color)] text-white rounded-md hover:bg-[var(--primary-color-hover)] disabled:opacity-50">Submit Request</button>
+            )}
           </div>
         </div>
       </Modal>

@@ -12,6 +12,7 @@ const statusStyles: Record<SubmissionStatus, string> = {
   [SubmissionStatus.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
   [SubmissionStatus.APPROVED]: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
   [SubmissionStatus.REJECTED]: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
+  [SubmissionStatus.CHANGES_REQUESTED]: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300',
 };
 
 const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ student, submissions, onBack }) => {
@@ -54,23 +55,28 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ student, submis
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{new Date(sub.created_at).toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[sub.status]}`}>
-                      {sub.status}
+                      {sub.status.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button onClick={() => downloadFile(sub.file_path, sub.file_name)} className="p-2 text-gray-500 hover:text-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] rounded-full dark:text-gray-400 dark:hover:text-[var(--primary-color)] dark:ring-offset-gray-800" title="Download">
+                    <button
+                      onClick={() => downloadFile(sub.file_path!, sub.file_name!)}
+                      disabled={!sub.file_path}
+                      className="p-2 text-gray-500 hover:text-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] rounded-full dark:text-gray-400 dark:hover:text-[var(--primary-color)] dark:ring-offset-gray-800 disabled:text-gray-300 dark:disabled:text-gray-500 disabled:cursor-not-allowed"
+                      title={sub.file_path ? "Download" : "File not available"}
+                    >
                           <span className="material-symbols-outlined">download</span>
                       </button>
                   </td>
                 </tr>
               );
 
-              if (sub.status === SubmissionStatus.REJECTED && sub.rejection_reason) {
+              if ((sub.status === SubmissionStatus.REJECTED || sub.status === SubmissionStatus.CHANGES_REQUESTED) && sub.rejection_reason) {
                 const reasonRow = (
                   <tr key={`${sub.id}-reason`}>
-                    <td colSpan={4} className="px-6 py-3 bg-red-50 dark:bg-red-900/30">
-                      <div className="text-sm text-red-800 dark:text-red-200">
-                        <p className="font-semibold">Reason for Rejection:</p>
+                    <td colSpan={4} className={`px-6 py-3 ${sub.status === SubmissionStatus.REJECTED ? 'bg-red-50 dark:bg-red-900/30' : 'bg-orange-50 dark:bg-orange-900/30'}`}>
+                      <div className={`text-sm ${sub.status === SubmissionStatus.REJECTED ? 'text-red-800 dark:text-red-200' : 'text-orange-800 dark:text-orange-200'}`}>
+                        <p className="font-semibold">{sub.status === SubmissionStatus.REJECTED ? 'Reason for Rejection:' : 'Admin Feedback:'}</p>
                         <p className="mt-1 whitespace-normal">{sub.rejection_reason}</p>
                       </div>
                     </td>

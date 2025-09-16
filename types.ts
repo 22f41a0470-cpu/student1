@@ -7,6 +7,7 @@ export enum SubmissionStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected',
+  CHANGES_REQUESTED = 'changes_requested',
 }
 
 export interface User {
@@ -21,7 +22,7 @@ export interface Submission {
   id: string;
   student_id: string;
   file_name: string;
-  file_path: string;
+  file_path: string | null;
   file_size: number | null;
   file_type: string | null;
   status: SubmissionStatus;

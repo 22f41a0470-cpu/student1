@@ -21,6 +21,7 @@ const statusStyles: Record<SubmissionStatus, string> = {
   [SubmissionStatus.PENDING]: 'text-yellow-800 dark:text-yellow-300',
   [SubmissionStatus.APPROVED]: 'text-green-800 dark:text-green-300',
   [SubmissionStatus.REJECTED]: 'text-red-800 dark:text-red-300',
+  [SubmissionStatus.CHANGES_REQUESTED]: 'text-orange-800 dark:text-orange-300',
 };
 
 const UserManagement: React.FC<UserManagementProps> = ({ users, submissions, onUserDeleted, currentUser, onSelectStudent, searchQuery, onSearchChange }) => {
@@ -45,7 +46,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, submissions, onU
     if (!submission) {
       return <span className="text-gray-500 dark:text-gray-400">Not Submitted</span>;
     }
-    return <span className={statusStyles[submission.status]}>{submission.status}</span>;
+    return <span className={statusStyles[submission.status]}>{submission.status.replace('_', ' ')}</span>;
   };
 
   return (
