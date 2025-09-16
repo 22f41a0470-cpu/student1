@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Submission, SubmissionStatus } from '../types';
 import { getSubmissionForUser, createSubmission } from '../services/submissionService';
@@ -8,9 +7,9 @@ interface StudentDashboardProps {
 }
 
 const statusStyles: Record<SubmissionStatus, string> = {
-  [SubmissionStatus.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-  [SubmissionStatus.APPROVED]: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  [SubmissionStatus.REJECTED]: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+  [SubmissionStatus.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
+  [SubmissionStatus.APPROVED]: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
+  [SubmissionStatus.REJECTED]: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
 };
 
 const StatusCard: React.FC<{ submission: Submission }> = ({ submission }) => (
@@ -19,11 +18,11 @@ const StatusCard: React.FC<{ submission: Submission }> = ({ submission }) => (
     <div className="space-y-4">
       <div>
         <span className="font-semibold text-gray-600 dark:text-gray-400">File Name:</span>
-        <span className="ml-2 text-gray-800 dark:text-gray-200">{submission.file.name}</span>
+        <span className="ml-2 text-gray-800 dark:text-gray-200">{submission.file_name}</span>
       </div>
       <div>
         <span className="font-semibold text-gray-600 dark:text-gray-400">Submitted At:</span>
-        <span className="ml-2 text-gray-800 dark:text-gray-200">{new Date(submission.submittedAt).toLocaleString()}</span>
+        <span className="ml-2 text-gray-800 dark:text-gray-200">{new Date(submission.created_at).toLocaleString()}</span>
       </div>
       <div className="flex items-center">
         <span className="font-semibold text-gray-600 dark:text-gray-400">Status:</span>
@@ -31,10 +30,10 @@ const StatusCard: React.FC<{ submission: Submission }> = ({ submission }) => (
           {submission.status}
         </span>
       </div>
-      {submission.status === SubmissionStatus.REJECTED && submission.rejectionReason && (
+      {submission.status === SubmissionStatus.REJECTED && submission.rejection_reason && (
         <div className="pt-2">
           <p className="font-semibold text-gray-600 dark:text-gray-400">Reason for Rejection:</p>
-          <p className="mt-1 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-md text-red-700 dark:text-red-300">{submission.rejectionReason}</p>
+          <p className="mt-1 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-md text-red-700 dark:text-red-300">{submission.rejection_reason}</p>
         </div>
       )}
     </div>
@@ -62,7 +61,11 @@ const UploadForm: React.FC<{ user: User; onUploadSuccess: (submission: Submissio
     setIsUploading(true);
     try {
       const newSubmission = await createSubmission(user, file);
-      onUploadSuccess(newSubmission);
+      if (newSubmission) {
+        onUploadSuccess(newSubmission);
+      } else {
+        setError('File upload failed. Please try again.');
+      }
     } catch (err) {
       setError('File upload failed. Please try again.');
       console.error(err);
@@ -90,7 +93,7 @@ const UploadForm: React.FC<{ user: User; onUploadSuccess: (submission: Submissio
         <button
           type="submit"
           disabled={isUploading || !file}
-          className="w-full px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 disabled:bg-indigo-300 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition ease-in-out duration-150"
+          className="w-full px-4 py-2 bg-[var(--primary-color)] text-white rounded-md hover:bg-[var(--primary-color-hover)] disabled:bg-indigo-300 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] transition ease-in-out duration-150"
         >
           {isUploading ? 'Uploading...' : 'Submit File'}
         </button>
@@ -104,8 +107,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSubmission = () => {
-      const sub = getSubmissionForUser(user.id);
+    const fetchSubmission = async () => {
+      const sub = await getSubmissionForUser(user.id);
       setSubmission(sub);
       setIsLoading(false);
     };
@@ -113,16 +116,18 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
   }, [user.id]);
 
   if (isLoading) {
-    return <div className="text-center p-10">Loading...</div>;
+    return <div className="text-center p-10 dark:text-gray-300">Loading...</div>;
   }
 
   return (
     <main className="container mx-auto px-6 py-8">
-      {submission ? (
-        <StatusCard submission={submission} />
-      ) : (
-        <UploadForm user={user} onUploadSuccess={setSubmission} />
-      )}
+       <div className="max-w-4xl mx-auto">
+          {submission ? (
+            <StatusCard submission={submission} />
+          ) : (
+            <UploadForm user={user} onUploadSuccess={setSubmission} />
+          )}
+       </div>
     </main>
   );
 };

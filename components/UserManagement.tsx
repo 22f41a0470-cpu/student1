@@ -25,9 +25,9 @@ const statusStyles: Record<SubmissionStatus, string> = {
 
 const UserManagement: React.FC<UserManagementProps> = ({ users, submissions, onUserDeleted, currentUser, onSelectStudent, searchQuery, onSearchChange }) => {
 
-  const handleDelete = (userId: string, userName: string) => {
+  const handleDelete = async (userId: string, userName: string) => {
     if (window.confirm(`Are you sure you want to delete the user "${userName}"? This action cannot be undone.`)) {
-      const success = deleteUser(userId);
+      const success = await deleteUser(userId);
       if (success) {
         alert('User deleted successfully.');
         onUserDeleted();
@@ -41,7 +41,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, submissions, onU
     if (user.role !== UserRole.STUDENT) {
       return <span className="text-gray-400 dark:text-gray-500">—</span>;
     }
-    const submission = submissions.find(s => s.studentId === user.id);
+    const submission = submissions.find(s => s.student_id === user.id);
     if (!submission) {
       return <span className="text-gray-500 dark:text-gray-400">Not Submitted</span>;
     }
@@ -67,10 +67,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, submissions, onU
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">S.No.</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Register No. / Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Submission Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Last Login</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Last Updated</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
@@ -99,7 +99,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, submissions, onU
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{getSubmissionStatus(user)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                  {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}
+                  {user.updated_at ? new Date(user.updated_at).toLocaleString() : 'Never'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   {user.role !== UserRole.ADMIN && (

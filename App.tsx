@@ -6,6 +6,7 @@ import StudentDashboard from './components/StudentDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import Header from './components/Header';
 import { ThemeProvider, ThemeContext } from './contexts/ThemeContext';
+import { supabase } from './supabaseClient';
 
 const AppContent: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -19,19 +20,29 @@ const AppContent: React.FC = () => {
   }, [theme]);
   
   useEffect(() => {
-    const user = getCurrentUser();
-    if (user) {
+    const fetchUser = async () => {
+      const user = await getCurrentUser();
       setCurrentUser(user);
+      setIsLoading(false);
     }
-    setIsLoading(false);
+    
+    fetchUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+       fetchUser();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
   };
 
-  const handleLogout = () => {
-    logoutUser();
+  const handleLogout = async () => {
+    await logoutUser();
     setCurrentUser(null);
   };
   
@@ -44,7 +55,9 @@ const AppContent: React.FC = () => {
   }
 
   if (!currentUser) {
-    return <LoginPage onLogin={handleLogin} />;
+    return (
+      <LoginPage onLogin={handleLogin} />
+    );
   }
 
   return (

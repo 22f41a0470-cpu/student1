@@ -1,20 +1,27 @@
+import { supabase } from '../supabaseClient';
 
-import { StoredFile } from '../types';
+export const downloadFile = async (filePath: string, fileName: string) => {
+  try {
+    const { data, error } = await supabase.storage
+      .from('uploads') // NOTE: 'uploads' is the required bucket name in Supabase Storage.
+      .download(filePath);
 
-export const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
-};
+    if (error) {
+      throw error;
+    }
 
-export const downloadBase64File = (storedFile: StoredFile) => {
-  const link = document.createElement('a');
-  link.href = storedFile.content;
-  link.download = storedFile.name;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    if (data) {
+      const blob = new Blob([data], { type: data.type });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    }
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    alert('Failed to download file.');
+  }
 };

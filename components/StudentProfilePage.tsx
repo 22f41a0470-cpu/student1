@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Submission, SubmissionStatus } from '../types';
-import { downloadBase64File } from '../utils/fileHelper';
+import { downloadFile } from '../utils/fileHelper';
 
 interface StudentProfilePageProps {
   student: User;
@@ -15,8 +15,8 @@ const statusStyles: Record<SubmissionStatus, string> = {
 };
 
 const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ student, submissions, onBack }) => {
-  const studentSubmissions = submissions.filter(s => s.studentId === student.id)
-    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+  const studentSubmissions = submissions.filter(s => s.student_id === student.id)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
@@ -50,28 +50,28 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ student, submis
             {studentSubmissions.length > 0 ? studentSubmissions.flatMap(sub => {
               const mainRow = (
                 <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{sub.file.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{new Date(sub.submittedAt).toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{sub.file_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{new Date(sub.created_at).toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[sub.status]}`}>
                       {sub.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button onClick={() => downloadBase64File(sub.file)} className="p-2 text-gray-500 hover:text-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] rounded-full dark:text-gray-400 dark:hover:text-[var(--primary-color)] dark:ring-offset-gray-800" title="Download">
+                    <button onClick={() => downloadFile(sub.file_path, sub.file_name)} className="p-2 text-gray-500 hover:text-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] rounded-full dark:text-gray-400 dark:hover:text-[var(--primary-color)] dark:ring-offset-gray-800" title="Download">
                           <span className="material-symbols-outlined">download</span>
                       </button>
                   </td>
                 </tr>
               );
 
-              if (sub.status === SubmissionStatus.REJECTED && sub.rejectionReason) {
+              if (sub.status === SubmissionStatus.REJECTED && sub.rejection_reason) {
                 const reasonRow = (
                   <tr key={`${sub.id}-reason`}>
                     <td colSpan={4} className="px-6 py-3 bg-red-50 dark:bg-red-900/30">
                       <div className="text-sm text-red-800 dark:text-red-200">
                         <p className="font-semibold">Reason for Rejection:</p>
-                        <p className="mt-1 whitespace-normal">{sub.rejectionReason}</p>
+                        <p className="mt-1 whitespace-normal">{sub.rejection_reason}</p>
                       </div>
                     </td>
                   </tr>

@@ -1,35 +1,34 @@
 export enum UserRole {
-  STUDENT = 'STUDENT',
-  ADMIN = 'ADMIN',
+  STUDENT = 'student',
+  ADMIN = 'admin',
 }
 
 export enum SubmissionStatus {
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
 }
 
 export interface User {
-  id: string;
+  id: string; // Comes from Supabase auth
   name: string;
   email: string;
-  password?: string; // Should not be stored long-term, but needed for registration
   role: UserRole;
-  lastLogin?: string;
-}
-
-export interface StoredFile {
-  name: string;
-  type: string;
-  content: string; // Base64 encoded content
+  updated_at?: string;
 }
 
 export interface Submission {
   id: string;
-  studentId: string;
-  studentName: string;
-  file: StoredFile;
+  student_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number | null;
+  file_type: string | null;
   status: SubmissionStatus;
-  submittedAt: string;
-  rejectionReason?: string;
+  rejection_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at?: string;
+  expires_at: string | null;
 }

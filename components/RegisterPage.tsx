@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { registerUser } from '../services/authService';
 import { User } from '../types';
@@ -13,21 +12,42 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onSwitchToLogin
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const user = registerUser(name, email, password);
+    setIsLoading(true);
+    const user = await registerUser(name, email, password);
     if (user) {
-      alert('Registration successful! Please log in.');
-      onSwitchToLogin();
+      setIsSuccess(true);
+      // Supabase might require email confirmation.
+      // For now, we'll let the user know to check their email and then switch to login.
+      setTimeout(() => {
+          onSwitchToLogin();
+      }, 3000)
     } else {
-      setError('An account with this email already exists.');
+      setError('Registration failed. The email might already be in use.');
     }
+    setIsLoading(false);
   };
 
+  if(isSuccess) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+            <div className="max-w-md w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8 text-center">
+                <h2 className="text-2xl font-bold text-green-600 dark:text-green-400 mb-4">Registration Successful!</h2>
+                <p className="text-gray-700 dark:text-gray-300">
+                    Please check your email for a confirmation link if required. You will be redirected to the login page shortly.
+                </p>
+            </div>
+        </div>
+      );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <div className="max-w-md w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8">
         <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-8">Register</h2>
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
@@ -39,8 +59,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onSwitchToLogin
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-indigo-200 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] dark:bg-gray-700 dark:text-white dark:border-gray-600"
               required
+              autoComplete="name"
             />
           </div>
           <div className="mb-4">
@@ -50,8 +71,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onSwitchToLogin
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-indigo-200 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] dark:bg-gray-700 dark:text-white dark:border-gray-600"
               required
+              autoComplete="email"
             />
           </div>
           <div className="mb-6">
@@ -61,20 +83,22 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onSwitchToLogin
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-indigo-200 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] dark:bg-gray-700 dark:text-white dark:border-gray-600"
               required
+              autoComplete="new-password"
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 focus:outline-none focus:bg-indigo-700 transition duration-300"
+            disabled={isLoading}
+            className="w-full bg-[var(--primary-color)] text-white py-2 px-4 rounded-md hover:bg-[var(--primary-color-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] transition duration-300 disabled:opacity-50"
           >
-            Register
+            {isLoading ? 'Registering...' : 'Register'}
           </button>
         </form>
         <p className="text-center mt-4 text-gray-600 dark:text-gray-400">
           Already have an account?{' '}
-          <button onClick={onSwitchToLogin} className="text-indigo-500 hover:underline">
+          <button onClick={onSwitchToLogin} className="text-[var(--primary-color)] hover:underline font-medium">
             Login here
           </button>
         </p>

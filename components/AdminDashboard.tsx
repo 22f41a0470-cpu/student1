@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Submission, SubmissionStatus, User, UserRole } from '../types';
+import { Submission, SubmissionStatus, User } from '../types';
 import { getAllSubmissions, updateSubmissionStatus } from '../services/submissionService';
-import { downloadBase64File } from '../utils/fileHelper';
+import { downloadFile } from '../utils/fileHelper';
 import Modal from './common/Modal';
 import UserManagement from './UserManagement';
 import { getAllUsers } from '../services/authService';
 import StudentProfilePage from './StudentProfilePage';
+import StudentStatusDashboard from './StudentStatusDashboard';
 
 
 const statusStyles: Record<SubmissionStatus, string> = {
@@ -18,6 +19,9 @@ interface AdminDashboardProps {
   user: User;
 }
 
+// Define a new type for submissions that includes the student's name
+type EnrichedSubmission = Submission & { studentName: string };
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -28,12 +32,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   const [submissionSearchQuery, setSubmissionSearchQuery] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<SubmissionStatus | 'ALL'>('ALL');
-  const [activeTab, setActiveTab] = useState<'submissions' | 'users'>('submissions');
+  const [activeTab, setActiveTab] = useState<'studentStatus' | 'submissions' | 'users'>('studentStatus');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
-  const fetchData = () => {
-    setSubmissions(getAllSubmissions());
-    setUsers(getAllUsers());
+  const fetchData = async () => {
+    setIsLoading(true);
+    const [allSubmissions, allUsers] = await Promise.all([
+      getAllSubmissions(),
+      getAllUsers(),
+    ]);
+    setSubmissions(allSubmissions);
+    setUsers(allUsers);
     setIsLoading(false);
   };
 
@@ -60,8 +69,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     return users.find(u => u.id === selectedStudentId);
   }, [selectedStudentId, users]);
 
-  const handleApprove = (submissionId: string) => {
-    updateSubmissionStatus(submissionId, SubmissionStatus.APPROVED);
+  const handleApprove = async (submissionId: string) => {
+    await updateSubmissionStatus(submissionId, SubmissionStatus.APPROVED);
     fetchData();
   };
 
@@ -70,9 +79,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     setIsModalOpen(true);
   };
   
-  const handleReject = () => {
+  const handleReject = async () => {
     if (selectedSubmission && rejectionReason) {
-      updateSubmissionStatus(selectedSubmission.id, SubmissionStatus.REJECTED, rejectionReason);
+      await updateSubmissionStatus(selectedSubmission.id, SubmissionStatus.REJECTED, rejectionReason);
       fetchData();
       closeModal();
     }
@@ -84,14 +93,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     setRejectionReason('');
   };
 
+  const enrichedSubmissions = useMemo((): EnrichedSubmission[] => {
+    if (!users.length) return [];
+    return submissions.map(sub => {
+      const student = users.find(u => u.id === sub.student_id);
+      return {
+        ...sub,
+        studentName: student ? student.name : 'Unknown Student'
+      };
+    });
+  }, [submissions, users]);
+
   const filteredSubmissions = useMemo(() => {
-    return submissions.filter(sub => {
+    return enrichedSubmissions.filter(sub => {
       const matchesSearch = sub.studentName.toLowerCase().includes(submissionSearchQuery.toLowerCase()) ||
-                            sub.file.name.toLowerCase().includes(submissionSearchQuery.toLowerCase());
+                            sub.file_name.toLowerCase().includes(submissionSearchQuery.toLowerCase());
       const matchesFilter = statusFilter === 'ALL' || sub.status === statusFilter;
       return matchesSearch && matchesFilter;
     });
-  }, [submissions, submissionSearchQuery, statusFilter]);
+  }, [enrichedSubmissions, submissionSearchQuery, statusFilter]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => 
@@ -117,7 +137,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     </button>
   );
   
-  const TabButton: React.FC<{tabName: 'submissions' | 'users', label: string}> = ({ tabName, label }) => (
+  const TabButton: React.FC<{tabName: 'studentStatus' | 'submissions' | 'users', label: string}> = ({ tabName, label }) => (
      <button
         onClick={() => setActiveTab(tabName)}
         className={`px-4 py-2 text-base font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] dark:ring-offset-gray-900 transition-colors duration-200 ${
@@ -143,10 +163,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
 
         <div className="mb-8 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
+            <TabButton tabName='studentStatus' label='Student Status' />
             <TabButton tabName='submissions' label='Submissions' />
             <TabButton tabName='users' label='User Management' />
           </div>
         </div>
+
+        {activeTab === 'studentStatus' && (
+          <StudentStatusDashboard users={users} submissions={submissions} />
+        )}
 
         {activeTab === 'submissions' && (
           <div>
@@ -187,8 +212,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                   {filteredSubmissions.length > 0 ? filteredSubmissions.map(sub => (
                     <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{sub.studentName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{sub.file.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{new Date(sub.submittedAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{sub.file_name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{new Date(sub.created_at).toLocaleDateString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[sub.status]}`}>
                           {sub.status}
@@ -196,7 +221,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center gap-2">
-                            <button onClick={() => downloadBase64File(sub.file)} className="p-2 text-gray-500 hover:text-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] rounded-full dark:text-gray-400 dark:hover:text-[var(--primary-color)] dark:ring-offset-gray-800" title="Download">
+                            <button onClick={() => downloadFile(sub.file_path, sub.file_name)} className="p-2 text-gray-500 hover:text-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] rounded-full dark:text-gray-400 dark:hover:text-[var(--primary-color)] dark:ring-offset-gray-800" title="Download">
                                 <span className="material-symbols-outlined">download</span>
                             </button>
                             {sub.status === SubmissionStatus.PENDING && (
