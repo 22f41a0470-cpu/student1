@@ -24,12 +24,15 @@ export const getAllUsers = (): User[] => {
   return getStoredUsers();
 };
 
-export const registerUser = (name: string, email: string, password: string): User | null => {
+export const registerUser = (
+  name: string,
+  email: string,
+  password: string
+): { user: User | null; error: string | null } => {
   const users = getStoredUsers();
   const existingUser = users.find((user) => user.email === email);
   if (existingUser) {
-    alert('User with this email already exists.');
-    return null;
+    return { user: null, error: 'User with this email already exists.' };
   }
 
   const newUser: User = {
@@ -43,7 +46,8 @@ export const registerUser = (name: string, email: string, password: string): Use
 
   users.push(newUser);
   storeUsers(users);
-  return newUser;
+  localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+  return { user: newUser, error: null };
 };
 
 export const loginUser = (email: string, password: string): User | null => {

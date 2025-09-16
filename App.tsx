@@ -34,6 +34,10 @@ const AppContent: React.FC = () => {
     setCurrentUser(user);
   };
 
+  const handleRegister = (user: User) => {
+    setCurrentUser(user);
+  };
+
   const handleLogout = () => {
     logoutUser();
     setCurrentUser(null);
@@ -52,7 +56,7 @@ const AppContent: React.FC = () => {
     return authView === 'LOGIN' ? (
       <LoginPage onLogin={handleLogin} onSwitchToRegister={() => setAuthView('REGISTER')} />
     ) : (
-      <RegisterPage onRegister={() => {}} onSwitchToLogin={() => setAuthView('LOGIN')} />
+      <RegisterPage onRegister={handleRegister} onSwitchToLogin={() => setAuthView('LOGIN')} />
     );
   }
 

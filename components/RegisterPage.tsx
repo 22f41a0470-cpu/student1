@@ -17,12 +17,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onSwitchToLogin
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const user = registerUser(name, email, password);
+    const { user, error } = registerUser(name, email, password);
     if (user) {
-      alert('Registration successful! Please log in.');
-      onSwitchToLogin();
-    } else {
-      setError('An account with this email already exists.');
+      onRegister(user);
+    } else if (error) {
+      setError(error);
     }
   };
 
