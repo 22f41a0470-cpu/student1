@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { User, Submission, SubmissionStatus } from '../types';
 import { studentData } from '../constants';
+import { formatStatus } from '../utils/statusHelper';
 
 interface StudentStatusDashboardProps {
   users: User[];
@@ -72,6 +73,7 @@ const StudentStatusDashboard: React.FC<StudentStatusDashboardProps> = ({ users, 
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">S.No.</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Reg. No</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Submission Status</th>
@@ -79,13 +81,14 @@ const StudentStatusDashboard: React.FC<StudentStatusDashboardProps> = ({ users, 
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {enrichedStudentData.length > 0 ? enrichedStudentData.map((student) => (
+            {enrichedStudentData.length > 0 ? enrichedStudentData.map((student, index) => (
               <tr key={student.regNo} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">{student.regNo}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{student.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${submissionStatusStyles[student.submissionStatus]}`}>
-                    {typeof student.submissionStatus === 'string' ? student.submissionStatus.replace('_', ' ') : student.submissionStatus}
+                    {formatStatus(student.submissionStatus)}
                   </span>
                 </td>
                 <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${loginStatusStyles[student.hasLoggedIn ? 'Logged In' : 'Never']}`}>
@@ -94,7 +97,7 @@ const StudentStatusDashboard: React.FC<StudentStatusDashboardProps> = ({ users, 
               </tr>
             )) : (
               <tr>
-                <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">No students found.</td>
+                <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">No students found.</td>
               </tr>
             )}
           </tbody>

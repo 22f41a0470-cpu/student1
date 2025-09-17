@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, Submission, SubmissionStatus } from '../types';
-import { getSubmissionForUser, createSubmission } from '../services/submissionService';
+import { getSubmissionsForUser, createSubmission } from '../services/submissionService';
+import { formatStatus } from '../utils/statusHelper';
+import { getFileIcon } from '../utils/fileIconHelper';
 
 interface StudentDashboardProps {
   user: User;
@@ -13,38 +15,6 @@ const statusStyles: Record<SubmissionStatus, string> = {
   [SubmissionStatus.CHANGES_REQUESTED]: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300',
 };
 
-const StatusCard: React.FC<{ submission: Submission }> = ({ submission }) => (
-  <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-    <h3 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">Your Submission Status</h3>
-    <div className="space-y-4">
-      <div>
-        <span className="font-semibold text-gray-600 dark:text-gray-400">File Name:</span>
-        <span className="ml-2 text-gray-800 dark:text-gray-200">{submission.file_name}</span>
-      </div>
-      <div>
-        <span className="font-semibold text-gray-600 dark:text-gray-400">Submitted At:</span>
-        <span className="ml-2 text-gray-800 dark:text-gray-200">{new Date(submission.created_at).toLocaleString()}</span>
-      </div>
-      <div className="flex items-center">
-        <span className="font-semibold text-gray-600 dark:text-gray-400">Status:</span>
-        <span className={`ml-2 px-3 py-1 text-sm font-semibold rounded-full ${statusStyles[submission.status]}`}>
-          {submission.status.replace('_', ' ')}
-        </span>
-      </div>
-      {(submission.status === SubmissionStatus.REJECTED || submission.status === SubmissionStatus.CHANGES_REQUESTED) && submission.rejection_reason && (
-        <div className="pt-2">
-          <p className="font-semibold text-gray-600 dark:text-gray-400">
-            {submission.status === SubmissionStatus.REJECTED ? 'Reason for Rejection:' : 'Admin Feedback:'}
-          </p>
-          <p className={`mt-1 p-3 rounded-md text-sm ${submission.status === SubmissionStatus.REJECTED ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-300' : 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-500/30 text-orange-700 dark:text-orange-300'}`}>
-            {submission.rejection_reason}
-          </p>
-        </div>
-      )}
-    </div>
-  </div>
-);
-
 const UploadForm: React.FC<{
   user: User;
   onUploadSuccess: (submission: Submission) => void;
@@ -53,6 +23,7 @@ const UploadForm: React.FC<{
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -68,8 +39,15 @@ const UploadForm: React.FC<{
       return;
     }
     setIsUploading(true);
+    setUploadProgress(0);
+    setError('');
+
     try {
-      const newSubmission = await createSubmission(user, file);
+      const handleProgress = (percentage: number) => {
+        setUploadProgress(percentage);
+      };
+      
+      const newSubmission = await createSubmission(user, file, handleProgress);
       if (newSubmission) {
         onUploadSuccess(newSubmission);
       } else {
@@ -80,6 +58,7 @@ const UploadForm: React.FC<{
       console.error(err);
     } finally {
       setIsUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -92,7 +71,7 @@ const UploadForm: React.FC<{
 
   const getMessage = () => {
     if (submissionStatus === SubmissionStatus.REJECTED) {
-      return "Your previous submission was rejected. Please review the feedback above, make the necessary changes, and upload the corrected file.";
+      return "Your previous submission was rejected. Please review the feedback, make the necessary changes, and upload the corrected file.";
     }
     if (submissionStatus === SubmissionStatus.CHANGES_REQUESTED) {
       return "The admin has requested changes. Please review the feedback and upload a revised version of your file.";
@@ -120,15 +99,36 @@ const UploadForm: React.FC<{
             id="file_input"
             type="file"
             onChange={handleFileChange}
+            disabled={isUploading}
           />
         </div>
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+        
+        {isUploading && (
+          <div className="mt-4">
+            <div className="flex justify-between mb-1">
+              <span className="text-base font-medium text-gray-700 dark:text-white">Uploading file...</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-white">{uploadProgress ?? 0}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+              <div 
+                className="bg-[var(--primary-color)] h-2.5 rounded-full transition-all duration-300 ease-linear" 
+                style={{ width: `${uploadProgress ?? 0}%` }}
+                role="progressbar"
+                aria-valuenow={uploadProgress ?? 0}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              ></div>
+            </div>
+          </div>
+        )}
+
         <button
           type="submit"
           disabled={isUploading || !file}
-          className="w-full px-4 py-2 bg-[var(--primary-color)] text-white rounded-md hover:bg-[var(--primary-color-hover)] disabled:bg-indigo-300 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] transition ease-in-out duration-150"
+          className="w-full mt-4 px-4 py-2 bg-[var(--primary-color)] text-white rounded-md hover:bg-[var(--primary-color-hover)] disabled:bg-indigo-300 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] transition ease-in-out duration-150"
         >
-          {isUploading ? 'Uploading...' : 'Submit File'}
+          {isUploading ? `Uploading...` : 'Submit File'}
         </button>
       </form>
     </div>
@@ -136,37 +136,165 @@ const UploadForm: React.FC<{
 };
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
-  const [submission, setSubmission] = useState<Submission | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchSubmission = async () => {
-      const sub = await getSubmissionForUser(user.id);
-      setSubmission(sub);
-      setIsLoading(false);
+  const hallTicketNumber = useMemo(() => user.email.split('@')[0].toUpperCase(), [user.email]);
+
+  const stats = useMemo(() => {
+    return {
+      total: submissions.length,
+      approved: submissions.filter(s => s.status === SubmissionStatus.APPROVED).length,
+      rejected: submissions.filter(s => s.status === SubmissionStatus.REJECTED || s.status === SubmissionStatus.CHANGES_REQUESTED).length,
     };
-    fetchSubmission();
+  }, [submissions]);
+  
+  const fetchSubmissions = async () => {
+    const subs = await getSubmissionsForUser(user.id);
+    setSubmissions(subs);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchSubmissions();
   }, [user.id]);
 
+  const handleUploadSuccess = (newSubmission: Submission) => {
+    // Re-fetch all submissions to get the most up-to-date list
+    fetchSubmissions();
+  };
+
   if (isLoading) {
-    return <div className="text-center p-10 dark:text-gray-300">Loading...</div>;
+    return <div className="text-center p-10 dark:text-gray-300">Loading dashboard...</div>;
   }
 
-  const canUploadNewFile = !submission || submission.status === SubmissionStatus.REJECTED || submission.status === SubmissionStatus.CHANGES_REQUESTED;
+  const latestSubmission = submissions.length > 0 ? submissions[0] : null;
+  const canUploadNewFile = !latestSubmission || latestSubmission.status === SubmissionStatus.REJECTED || latestSubmission.status === SubmissionStatus.CHANGES_REQUESTED;
 
   return (
-    <main className="container mx-auto px-6 py-8">
-       <div className="max-w-4xl mx-auto space-y-8">
-          {submission && (
-            <StatusCard submission={submission} />
-          )}
-          {canUploadNewFile && (
-            <UploadForm
-              user={user}
-              onUploadSuccess={setSubmission}
-              submissionStatus={submission?.status}
-            />
-          )}
+    <main className="container mx-auto px-4 sm:px-6 py-8">
+       <div className="max-w-7xl mx-auto space-y-8">
+            {/* User Details Card */}
+            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+                <div className="flex items-center space-x-4">
+                    <div className="flex-shrink-0">
+                        <span className="material-symbols-outlined text-5xl text-[var(--primary-color)]">account_circle</span>
+                    </div>
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
+                        <div>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Username</p>
+                            <p className="text-lg font-semibold text-gray-900 dark:text-gray-200">{user.name}</p>
+                        </div>
+                         <div>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Hall Ticket Number</p>
+                            <p className="text-lg font-semibold text-gray-900 dark:text-gray-200">{hallTicketNumber}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Email Address</p>
+                            <p className="text-lg font-semibold text-gray-900 dark:text-gray-200">{user.email}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Mobile Number</p>
+                            <p className="text-lg font-semibold text-gray-500 dark:text-gray-400 italic">Not Provided</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                 <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 flex items-center">
+                    <div className="bg-blue-100 dark:bg-blue-900/50 rounded-full p-3"><span className="material-symbols-outlined text-3xl text-blue-600 dark:text-blue-300">inventory</span></div>
+                    <div className="ml-4">
+                        <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.total}</p>
+                        <p className="text-gray-500 dark:text-gray-400">Total Files Submitted</p>
+                    </div>
+                 </div>
+                 <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 flex items-center">
+                    <div className="bg-green-100 dark:bg-green-900/50 rounded-full p-3"><span className="material-symbols-outlined text-3xl text-green-600 dark:text-green-300">task_alt</span></div>
+                    <div className="ml-4">
+                        <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.approved}</p>
+                        <p className="text-gray-500 dark:text-gray-400">Files Approved</p>
+                    </div>
+                 </div>
+                 <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 flex items-center">
+                    <div className="bg-red-100 dark:bg-red-900/50 rounded-full p-3"><span className="material-symbols-outlined text-3xl text-red-600 dark:text-red-300">highlight_off</span></div>
+                    <div className="ml-4">
+                        <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.rejected}</p>
+                        <p className="text-gray-500 dark:text-gray-400">Files Rejected</p>
+                    </div>
+                 </div>
+            </div>
+
+            {/* Submission History */}
+             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Submission Details</h3>
+                </div>
+                 <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">S.No.</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">File Name</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Submitted Date</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {submissions.length > 0 ? submissions.flatMap((sub, index) => {
+                                const mainRow = (
+                                    <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">
+                                             <span className="inline-flex items-center gap-2">
+                                                <span className="material-symbols-outlined text-lg text-gray-500" aria-hidden="true">
+                                                    {getFileIcon(sub.file_name, sub.file_type)}
+                                                </span>
+                                                <span className="truncate max-w-sm" title={sub.file_name ?? ''}>{sub.file_name}</span>
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{new Date(sub.created_at).toLocaleString()}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[sub.status]}`}>
+                                            {formatStatus(sub.status)}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                );
+
+                                if ((sub.status === SubmissionStatus.REJECTED || sub.status === SubmissionStatus.CHANGES_REQUESTED) && sub.rejection_reason) {
+                                    const reasonRow = (
+                                    <tr key={`${sub.id}-reason`}>
+                                        <td colSpan={4} className={`px-6 py-3 ${sub.status === SubmissionStatus.REJECTED ? 'bg-red-50 dark:bg-red-900/30' : 'bg-orange-50 dark:bg-orange-900/30'}`}>
+                                        <div className={`text-sm ${sub.status === SubmissionStatus.REJECTED ? 'text-red-800 dark:text-red-200' : 'text-orange-800 dark:text-orange-200'}`}>
+                                            <p className="font-semibold">{sub.status === SubmissionStatus.REJECTED ? 'Reason for Rejection:' : 'Admin Feedback:'}</p>
+                                            <p className="mt-1 whitespace-pre-wrap">{sub.rejection_reason}</p>
+                                        </div>
+                                        </td>
+                                    </tr>
+                                    );
+                                    return [mainRow, reasonRow];
+                                }
+                                return [mainRow];
+                            }) : (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">You have not submitted any files yet.</td>
+                                </tr>
+                            )}
+                         </tbody>
+                    </table>
+                 </div>
+            </div>
+
+            {/* Upload Form (conditional) */}
+            {canUploadNewFile && (
+                <UploadForm
+                user={user}
+                onUploadSuccess={handleUploadSuccess}
+                submissionStatus={latestSubmission?.status}
+                />
+            )}
        </div>
     </main>
   );

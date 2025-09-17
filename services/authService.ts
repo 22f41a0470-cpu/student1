@@ -18,9 +18,9 @@ export const registerUser = async (name: string, email: string, password: string
 }
 
 export const getAllUsers = async (): Promise<User[]> => {
-  const { data, error } = await supabase.from('profiles').select('*');
+  const { data, error } = await supabase.from('profiles').select('id, name, email, role, updated_at');
   if (error) {
-    console.error('Error fetching users:', error);
+    console.error('Error fetching users:', error.message ? `${error.message} (Code: ${error.code})` : error);
     return [];
   }
   return data as User[];
@@ -37,9 +37,10 @@ interface LoginResult {
  * has not completed yet.
  */
 const fetchProfile = async (authUser: AuthUser): Promise<User | null> => {
+    const columnsToSelect = 'id, name, email, role, updated_at';
     let { data: profile, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(columnsToSelect)
         .eq('id', authUser.id)
         .single();
     
@@ -48,17 +49,17 @@ const fetchProfile = async (authUser: AuthUser): Promise<User | null> => {
         await new Promise(resolve => setTimeout(resolve, 1000));
         const { data: retryData, error: retryError } = await supabase
             .from('profiles')
-            .select('*')
+            .select(columnsToSelect)
             .eq('id', authUser.id)
             .single();
         
         if (retryError) {
-            console.error('Failed to fetch profile on retry:', retryError);
+            console.error('Failed to fetch profile on retry:', retryError.message ? `${retryError.message} (Code: ${retryError.code})` : retryError);
             return null;
         }
         profile = retryData;
     } else if (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Error fetching profile:', error.message ? `${error.message} (Code: ${error.code})` : error);
         return null;
     }
     

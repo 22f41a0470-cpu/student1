@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, UserRole, Submission, SubmissionStatus } from '../types';
 import { deleteUser } from '../services/authService';
+import { formatStatus } from '../utils/statusHelper';
 
 interface UserManagementProps {
   users: User[];
@@ -46,7 +47,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, submissions, onU
     if (!submission) {
       return <span className="text-gray-500 dark:text-gray-400">Not Submitted</span>;
     }
-    return <span className={statusStyles[submission.status]}>{submission.status.replace('_', ' ')}</span>;
+    return <span className={statusStyles[submission.status]}>{formatStatus(submission.status)}</span>;
   };
 
   return (

@@ -3,10 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 // IMPORTANT: In a real-world application, you should use environment variables
 // to store sensitive information like Supabase credentials, rather than hardcoding them.
 // For this environment, we are using the provided values directly.
-const supabaseUrl = 'https://xaaoffmrampluugmrhja.supabase.co';
+export const supabaseUrl = 'https://xaaoffmrampluugmrhja.supabase.co';
 
 // The public anon key for the Supabase project.
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhhYW9mZm1yYW1wbHV1Z21yaGphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2OTMyMzgsImV4cCI6MjA3MzI2OTIzOH0.EQJ6xtBe9Sc_TK-KyiNVAiB8TtBfjXxuiD49kd0N-Ro';
+export const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhhYW9mZm1yYW1wbHV1Z21yaGphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2OTMyMzgsImV4cCI6MjA3MzI2OTIzOH0.EQJ6xtBe9Sc_TK-KyiNVAiB8TtBfjXxuiD49kd0N-Ro';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   const errorMessage = "Supabase URL or anonymous key is missing. Check your configuration in supabaseClient.ts.";

@@ -33,3 +33,6 @@ export interface Submission {
   updated_at?: string;
   expires_at: string | null;
 }
+
+// A client-side-only type for combining submission data with student details.
+export type EnrichedSubmission = Submission & { studentName: string };

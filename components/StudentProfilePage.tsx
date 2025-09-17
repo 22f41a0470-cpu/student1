@@ -1,6 +1,8 @@
 import React from 'react';
 import { User, Submission, SubmissionStatus } from '../types';
 import { downloadFile } from '../utils/fileHelper';
+import { formatStatus } from '../utils/statusHelper';
+import { getFileIcon } from '../utils/fileIconHelper';
 
 interface StudentProfilePageProps {
   student: User;
@@ -51,11 +53,18 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ student, submis
             {studentSubmissions.length > 0 ? studentSubmissions.flatMap(sub => {
               const mainRow = (
                 <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{sub.file_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                    <span className="inline-flex items-center gap-2">
+                        <span className="material-symbols-outlined text-lg text-gray-500" aria-hidden="true">
+                            {getFileIcon(sub.file_name, sub.file_type)}
+                        </span>
+                        <span className="truncate max-w-sm" title={sub.file_name ?? ''}>{sub.file_name}</span>
+                    </span>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{new Date(sub.created_at).toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[sub.status]}`}>
-                      {sub.status.replace('_', ' ')}
+                      {formatStatus(sub.status)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

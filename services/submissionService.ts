@@ -1,5 +1,5 @@
 import { Submission, SubmissionStatus, User } from '../types';
-import { supabase } from '../supabaseClient';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../supabaseClient';
 
 /**
  * NOTE on Supabase Setup:
@@ -7,16 +7,69 @@ import { supabase } from '../supabaseClient';
  * `supabase_setup.sql` file for the required tables, RLS policies, and storage bucket setup.
  */
 
-export const createSubmission = async (student: User, file: File): Promise<Submission | null> => {
+const uploadFileWithProgress = (filePath: string, file: File, onProgress: (percentage: number) => void): Promise<void> => {
+  return new Promise(async (resolve, reject) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return reject(new Error('User not authenticated for file upload.'));
+    }
+
+    const accessToken = session.access_token;
+    const url = `${supabaseUrl}/storage/v1/object/uploads/${filePath}`;
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+
+    // Set headers for Supabase Storage
+    xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+    xhr.setRequestHeader('x-upsert', 'false'); // Do not overwrite existing files
+    xhr.setRequestHeader('apikey', supabaseAnonKey);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentage = Math.round((event.loaded / event.total) * 100);
+        onProgress(percentage);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress(100); // Ensure it completes at 100%
+        resolve();
+      } else {
+        let error;
+        try {
+          error = JSON.parse(xhr.responseText);
+        } catch (e) {
+          error = { message: xhr.responseText };
+        }
+        console.error('File upload failed with status:', xhr.status, error);
+        reject(new Error(error.message || `File upload failed with status ${xhr.status}.`));
+      }
+    };
+
+    xhr.onerror = () => {
+      console.error('Network error during file upload.');
+      reject(new Error('Network error during file upload.'));
+    };
+
+    xhr.send(file);
+  });
+};
+
+
+export const createSubmission = async (
+  student: User, 
+  file: File,
+  onProgress: (percentage: number) => void
+): Promise<Submission | null> => {
   // Use student.id for the folder path to align with Storage RLS policies
   const filePath = `${student.id}/${Date.now()}-${file.name}`;
 
   // 1. Upload file to Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from('uploads')
-    .upload(filePath, file);
-
-  if (uploadError) {
+  try {
+    await uploadFileWithProgress(filePath, file, onProgress);
+  } catch (uploadError: any) {
     console.error('Error uploading file:', uploadError.message);
     return null;
   }
@@ -72,6 +125,22 @@ export const getSubmissionForUser = async (userId: string): Promise<Submission |
   return data as Submission | null;
 };
 
+export const getSubmissionsForUser = async (userId: string): Promise<Submission[]> => {
+  const { data, error } = await supabase
+    .from('uploads')
+    .select('*')
+    .eq('student_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching user submissions:', error.message);
+    return [];
+  }
+
+  return data as Submission[];
+};
+
+
 export const getAllSubmissions = async (): Promise<Submission[]> => {
   const { data, error } = await supabase
     .from('uploads')
@@ -95,28 +164,6 @@ export const updateSubmissionStatus = async (
     rejection_reason: feedback || null,
   };
 
-  // Special handling for rejection: delete file and clear file-related fields
-  if (status === SubmissionStatus.REJECTED) {
-    if (submission.file_path) {
-      console.log(`Deleting rejected file from storage: ${submission.file_path}`);
-      const { error: removeError } = await supabase.storage
-        .from('uploads')
-        .remove([submission.file_path]);
-
-      if (removeError) {
-        // Log the error but proceed with the database update. The file might already be gone.
-        console.error('Could not delete file from storage on rejection:', removeError.message);
-      }
-    }
-    
-    // Update data to reflect file deletion
-    updateData.file_path = null;
-    // Prepend (Rejected) to preserve a record of the original filename
-    updateData.file_name = `(Rejected) ${submission.file_name || 'unknown file'}`;
-    updateData.file_size = null;
-    updateData.file_type = null;
-  }
-
   const { data, error } = await supabase
     .from('uploads')
     .update(updateData)
@@ -129,6 +176,19 @@ export const updateSubmissionStatus = async (
     return null;
   }
   return data as Submission;
+};
+
+export const getFileSignedUrl = async (filePath: string): Promise<string | null> => {
+  const { data, error } = await supabase.storage
+    .from('uploads')
+    .createSignedUrl(filePath, 300); // URL valid for 5 minutes
+
+  if (error) {
+    console.error('Error creating signed URL:', error.message);
+    return null;
+  }
+
+  return data.signedUrl;
 };
 
 export const deleteSubmissionForUser = async (userId: string) => {

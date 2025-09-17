@@ -14,8 +14,8 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
     <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-gray-200 bg-white px-6 py-4 dark:bg-gray-800 dark:border-gray-700">
       <div className="flex items-center gap-4 text-gray-800">
         <div className="size-8 text-[var(--primary-color)]">
-          <svg fill="currentColor" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-            <path d="M42.4379 44C42.4379 44 36.0744 33.9038 41.1692 24C46.8624 12.9336 42.2078 4 42.2078 4L7.01134 4C7.01134 4 11.6577 12.932 5.96912 23.9969C0.876273 33.9029 7.27094 44 7.27094 44L42.4379 44Z"></path>
+          <svg fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8c1.39 0 2.69.36 3.83 1.01A5.99 5.99 0 0 0 12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.08 0 3.92-1.05 5-2.65A7.94 7.94 0 0 1 12 20z"/>
           </svg>
         </div>
         <h2 className="text-gray-900 text-xl font-bold leading-tight tracking-[-0.015em] dark:text-gray-100">
